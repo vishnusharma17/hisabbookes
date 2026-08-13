@@ -1,0 +1,15 @@
+{
+  "name": "@billflow/invoice-engine",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@billflow/types": "*"
+  }
+}

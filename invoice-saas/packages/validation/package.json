@@ -1,0 +1,1 @@
+{"name":"@billflow/validation","private":true,"version":"0.1.0","type":"module","dependencies":{"zod":"latest"},"exports":{".":"./src/index.ts"}}
