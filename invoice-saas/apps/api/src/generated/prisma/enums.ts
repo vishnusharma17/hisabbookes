@@ -29,6 +29,17 @@ export const InvoiceStatus = {
 export type InvoiceStatus = (typeof InvoiceStatus)[keyof typeof InvoiceStatus]
 
 
+export const InvoicePaymentMethod = {
+  CASH: 'CASH',
+  BANK_TRANSFER: 'BANK_TRANSFER',
+  UPI: 'UPI',
+  CARD: 'CARD',
+  OTHER: 'OTHER'
+} as const
+
+export type InvoicePaymentMethod = (typeof InvoicePaymentMethod)[keyof typeof InvoicePaymentMethod]
+
+
 export const SubscriptionPlan = {
   FREE: 'FREE',
   PRO: 'PRO',
