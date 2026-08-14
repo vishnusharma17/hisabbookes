@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, type Dashboard } from "../lib/api";
 
@@ -11,6 +12,10 @@ function money(value: number) {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function statusClass(status: string) {
+  return `status status-${status.toLowerCase()}`;
 }
 
 export default function DashboardPage() {
@@ -32,85 +37,224 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <main style={{ padding: 32 }}>
-        <h1>Dashboard</h1>
-        <p>{error}</p>
+      <main className="dashboard-main">
+        <div className="panel dashboard-error">
+          <h2>Unable to load dashboard</h2>
+          <p>{error}</p>
+          <Link className="button button-small" href="/login">
+            Sign in again
+          </Link>
+        </div>
       </main>
     );
   }
 
   if (!dashboard) {
-    return <main style={{ padding: 32 }}>Loading dashboard…</main>;
+    return (
+      <main className="dashboard-main">
+        <div className="dashboard-loading">Loading dashboard…</div>
+      </main>
+    );
   }
 
   const cards = [
-    ["Invoiced", money(dashboard.financials.invoicedAmount)],
-    ["Paid", money(dashboard.financials.paidAmount)],
-    ["Outstanding", money(dashboard.financials.outstandingAmount)],
-    ["Customers", String(dashboard.customers.total)],
+    {
+      label: "Invoiced",
+      value: money(dashboard.financials.invoicedAmount),
+      note: `${dashboard.invoices.total} total invoice${dashboard.invoices.total === 1 ? "" : "s"}`,
+      tone: "blue",
+    },
+    {
+      label: "Paid",
+      value: money(dashboard.financials.paidAmount),
+      note: `${dashboard.invoices.paid} paid invoice${dashboard.invoices.paid === 1 ? "" : "s"}`,
+      tone: "green",
+    },
+    {
+      label: "Outstanding",
+      value: money(dashboard.financials.outstandingAmount),
+      note: `${dashboard.invoices.overdue} overdue`,
+      tone: dashboard.financials.outstandingAmount > 0 ? "amber" : "green",
+    },
+    {
+      label: "Customers",
+      value: String(dashboard.customers.total),
+      note: "Active customers",
+      tone: "slate",
+    },
   ];
 
   return (
-    <main style={{ padding: 32, maxWidth: 1100, margin: "0 auto" }}>
-      <h1>HisabBookes Dashboard</h1>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <Link href="/" className="side-brand">
+          HisabBookes
+        </Link>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 16,
-          marginTop: 24,
-        }}
-      >
-        {cards.map(([label, value]) => (
-          <section
-            key={label}
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <div style={{ fontSize: 13, opacity: 0.65 }}>{label}</div>
-            <strong style={{ fontSize: 24 }}>{value}</strong>
-          </section>
-        ))}
-      </div>
+        <div className="side-label">Workspace</div>
 
-      <section style={{ marginTop: 32 }}>
-        <h2>Invoices</h2>
-        <p>
-          Total {dashboard.invoices.total} · Draft {dashboard.invoices.draft} ·
-          Finalized {dashboard.invoices.finalized} · Paid {dashboard.invoices.paid}
-        </p>
-      </section>
+        <nav className="side-nav">
+          <Link className="active" href="/dashboard">Overview</Link>
+          <Link href="/invoices">Invoices</Link>
+          <Link href="/customers">Customers</Link>
+          <Link href="/invoice/new">Create invoice</Link>
+        </nav>
 
-      <section style={{ marginTop: 32 }}>
-        <h2>Recent invoices</h2>
-        <div style={{ display: "grid", gap: 10 }}>
-          {dashboard.recentInvoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 16,
-                borderBottom: "1px solid #eee",
-                padding: "12px 0",
-              }}
-            >
-              <span>
-                <strong>{invoice.invoiceNumber}</strong>
-                {" · "}
-                {invoice.customer?.companyName ?? invoice.customer?.name ?? "Customer"}
-              </span>
-              <span>
-                {money(Number(invoice.total))} · {invoice.status}
-              </span>
-            </div>
-          ))}
+        <div className="side-bottom">
+          <div className="plan-card">
+            <span>FREE PLAN</span>
+            <strong>{dashboard.invoices.total} invoice{dashboard.invoices.total === 1 ? "" : "s"}</strong>
+            <small>Upgrade when you need more.</small>
+          </div>
+          <Link href="/" className="back-link">← Back to website</Link>
         </div>
-      </section>
-    </main>
+      </aside>
+
+      <main className="dashboard-main">
+        <header className="dash-header">
+          <div>
+            <span className="eyebrow">Workspace overview</span>
+            <h1>Good afternoon.</h1>
+            <p>Your billing activity at a glance.</p>
+          </div>
+          <Link className="button" href="/invoice/new">
+            + Create invoice
+          </Link>
+        </header>
+
+        <section className="stat-grid">
+          {cards.map((card) => (
+            <article className={`stat-card stat-${card.tone}`} key={card.label}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.note}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="dashboard-grid">
+          <div className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Invoice status</h2>
+                <p>Current status across all invoices.</p>
+              </div>
+              <Link className="text-link" href="/invoices">View all</Link>
+            </div>
+
+            <div className="status-summary">
+              <div><strong>{dashboard.invoices.draft}</strong><span>Draft</span></div>
+              <div><strong>{dashboard.invoices.finalized}</strong><span>Finalized</span></div>
+              <div><strong>{dashboard.invoices.paid}</strong><span>Paid</span></div>
+              <div><strong>{dashboard.invoices.pending}</strong><span>Pending</span></div>
+              <div><strong>{dashboard.invoices.overdue}</strong><span>Overdue</span></div>
+              <div><strong>{dashboard.invoices.cancelled}</strong><span>Cancelled</span></div>
+            </div>
+          </div>
+
+          <div className="panel collection-panel">
+            <div className="panel-head">
+              <div>
+                <h2>Collection</h2>
+                <p>Paid vs outstanding.</p>
+              </div>
+            </div>
+            <div className="collection-values">
+              <div>
+                <span>Collected</span>
+                <strong>{money(dashboard.financials.paidAmount)}</strong>
+              </div>
+              <div>
+                <span>Due</span>
+                <strong>{money(dashboard.financials.outstandingAmount)}</strong>
+              </div>
+            </div>
+            <div className="collection-bar">
+              <span
+                style={{
+                  width:
+                    dashboard.financials.invoicedAmount > 0
+                      ? `${Math.min(
+                          100,
+                          (dashboard.financials.paidAmount /
+                            dashboard.financials.invoicedAmount) *
+                            100,
+                        )}%`
+                      : "0%",
+                }}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Recent invoices</h2>
+              <p>Your latest billing activity.</p>
+            </div>
+            <Link className="text-link" href="/invoices">View all invoices</Link>
+          </div>
+
+          {dashboard.recentInvoices.length === 0 ? (
+            <div className="dashboard-empty">
+              <div className="empty-icon">+</div>
+              <div>
+                <h3>No invoices yet</h3>
+                <p>Create your first invoice to start tracking billing.</p>
+              </div>
+              <Link className="button button-small" href="/invoice/new">
+                Create invoice
+              </Link>
+            </div>
+          ) : (
+            <div className="invoice-table">
+              <div className="table-row table-head">
+                <span>Invoice</span>
+                <span>Customer</span>
+                <span>Date</span>
+                <span>Total</span>
+                <span>Status</span>
+              </div>
+
+              {dashboard.recentInvoices.map((invoice) => (
+                <div className="table-row" key={invoice.id}>
+                  <strong>{invoice.invoiceNumber}</strong>
+                  <span>
+                    {invoice.customer?.companyName ??
+                      invoice.customer?.name ??
+                      "Customer"}
+                  </span>
+                  <span>
+                    {new Intl.DateTimeFormat("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    }).format(new Date(invoice.invoiceDate))}
+                  </span>
+                  <span>{money(Number(invoice.total))}</span>
+                  <span>
+                    <em className={statusClass(invoice.status)}>
+                      {invoice.status}
+                    </em>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="empty-panel">
+          <div className="empty-icon">+</div>
+          <div>
+            <h2>Ready for your next invoice?</h2>
+            <p>Add your customer and services, preview the invoice, then finalize it.</p>
+          </div>
+          <Link className="button button-small" href="/invoice/new">
+            Create invoice
+          </Link>
+        </section>
+      </main>
+    </div>
   );
 }

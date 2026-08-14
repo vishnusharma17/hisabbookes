@@ -10,11 +10,6 @@ type Customer = {
   id: string;
   name: string;
   companyName: string | null;
-  phone?: string | null;
-  email?: string | null;
-  address?: string | null;
-  state?: string | null;
-  gstin?: string | null;
 };
 
 type Item = {
@@ -24,29 +19,14 @@ type Item = {
   discount: number;
 };
 
-type CustomerForm = {
-  name: string;
-  companyName: string;
-  phone: string;
-  email: string;
-  address: string;
-  state: string;
-  gstin: string;
-};
-
-const emptyCustomerForm: CustomerForm = {
-  name: "",
-  companyName: "",
-  phone: "",
-  email: "",
-  address: "",
-  state: "",
-  gstin: "",
-};
-
 export default function NewInvoicePage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [issueDate, setIssueDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [dueDate, setDueDate] = useState("");
   const [items, setItems] = useState<Item[]>([
     {
       description: "Website development",
@@ -55,23 +35,22 @@ export default function NewInvoicePage() {
       discount: 0,
     },
   ]);
-
-  const [issueDate, setIssueDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
-  const [dueDate, setDueDate] = useState("");
   const [tax, setTax] = useState(18);
   const [notes, setNotes] = useState("");
-
-  const [showCustomerForm, setShowCustomerForm] = useState(false);
-  const [customerForm, setCustomerForm] =
-    useState<CustomerForm>(emptyCustomerForm);
-
   const [loadingCustomers, setLoadingCustomers] = useState(true);
-  const [savingCustomer, setSavingCustomer] = useState(false);
-  const [savingInvoice, setSavingInvoice] = useState(false);
-
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [customerForm, setCustomerForm] = useState({
+    name: "",
+    companyName: "",
+    phone: "",
+    email: "",
+    address: "",
+    state: "",
+    gstin: "",
+  });
 
   useEffect(() => {
     if (!BUSINESS_ID) {
@@ -90,12 +69,8 @@ export default function NewInvoicePage() {
           setCustomerId(customers[0].id);
         }
       })
-      .catch((err: Error) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoadingCustomers(false);
-      });
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoadingCustomers(false));
   }, []);
 
   const subtotal = useMemo(
@@ -121,27 +96,23 @@ export default function NewInvoicePage() {
   const taxAmount = taxableAmount * (tax / 100);
   const total = taxableAmount + taxAmount;
 
-  const selectedCustomer = customers.find(
-    (customer) => customer.id === customerId,
-  );
-
   function updateItem(
     index: number,
     key: keyof Item,
     value: string,
   ) {
     setItems((current) =>
-      current.map((item, itemIndex) => {
-        if (itemIndex !== index) return item;
-
-        return {
-          ...item,
-          [key]:
-            key === "description"
-              ? value
-              : Math.max(0, Number(value) || 0),
-        };
-      }),
+      current.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [key]:
+                key === "description"
+                  ? value
+                  : Number(value) || 0,
+            }
+          : item,
+      ),
     );
   }
 
@@ -158,11 +129,7 @@ export default function NewInvoicePage() {
   }
 
   function removeItem(index: number) {
-    setItems((current) =>
-      current.length === 1
-        ? current
-        : current.filter((_, itemIndex) => itemIndex !== index),
-    );
+    setItems((current) => current.filter((_, i) => i !== index));
   }
 
   async function createCustomer() {
@@ -198,13 +165,21 @@ export default function NewInvoicePage() {
 
       setCustomers((current) => [customer, ...current]);
       setCustomerId(customer.id);
-      setCustomerForm(emptyCustomerForm);
+
+      setCustomerForm({
+        name: "",
+        companyName: "",
+        phone: "",
+        email: "",
+        address: "",
+        state: "",
+        gstin: "",
+      });
+
       setShowCustomerForm(false);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "CUSTOMER_CREATE_FAILED",
+        err instanceof Error ? err.message : "CUSTOMER_CREATE_FAILED",
       );
     } finally {
       setSavingCustomer(false);
@@ -234,43 +209,42 @@ export default function NewInvoicePage() {
       return;
     }
 
-    setSavingInvoice(true);
+    setSaving(true);
     setError("");
 
     try {
-      await apiFetch(
-        `/businesses/${BUSINESS_ID}/invoices`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            customerId,
-            issueDate: issueDate
-              ? new Date(`${issueDate}T00:00:00`).toISOString()
-              : undefined,
-            dueDate: dueDate
-              ? new Date(`${dueDate}T00:00:00`).toISOString()
-              : undefined,
-            notes: notes.trim() || undefined,
-            items: items.map((item) => ({
-              description: item.description.trim(),
-              quantity: item.quantity,
-              unitPrice: item.rate,
-              discount: item.discount,
-              taxRate: tax,
-            })),
-          }),
-        },
-      );
+      await apiFetch(`/businesses/${BUSINESS_ID}/invoices`, {
+        method: "POST",
+        body: JSON.stringify({
+          customerId,
+          issueDate: issueDate
+            ? new Date(`${issueDate}T00:00:00`).toISOString()
+            : undefined,
+          dueDate: dueDate
+            ? new Date(`${dueDate}T00:00:00`).toISOString()
+            : undefined,
+          notes: notes.trim() || undefined,
+          items: items.map((item) => ({
+            description: item.description.trim(),
+            quantity: item.quantity,
+            unitPrice: item.rate,
+            discount: item.discount,
+            taxRate: tax,
+          })),
+        }),
+      });
 
       window.location.href = "/invoices";
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "SAVE_FAILED",
-      );
+      setError(err instanceof Error ? err.message : "SAVE_FAILED");
     } finally {
-      setSavingInvoice(false);
+      setSaving(false);
     }
   }
+
+  const selectedCustomer = customers.find(
+    (customer) => customer.id === customerId,
+  );
 
   return (
     <div className="app-shell invoice-builder-shell">
@@ -288,9 +262,7 @@ export default function NewInvoicePage() {
           <Link className="active" href="/invoice/new">
             New invoice
           </Link>
-          <Link href="/business-profile">
-            Business Profile
-          </Link>
+          <Link href="/business-profile">Business Profile</Link>
         </nav>
 
         <div className="side-bottom">
@@ -306,8 +278,7 @@ export default function NewInvoicePage() {
             <span className="eyebrow">New invoice</span>
             <h1>Create invoice</h1>
             <p>
-              Create a draft invoice and save it to your
-              HisabBookes account.
+              Create a draft invoice and save it to your HisabBookes account.
             </p>
           </div>
 
@@ -320,9 +291,9 @@ export default function NewInvoicePage() {
               className="button"
               type="submit"
               form="invoice-form"
-              disabled={savingInvoice || loadingCustomers}
+              disabled={saving || loadingCustomers}
             >
-              {savingInvoice ? "Saving…" : "Save draft"}
+              {saving ? "Saving…" : "Save draft"}
             </button>
           </div>
         </header>
@@ -355,13 +326,23 @@ export default function NewInvoicePage() {
 
                 <div className="form-grid">
                   <label>
+                    Invoice number
+                    <input
+                      value={invoiceNo}
+                      onChange={(e) => setInvoiceNo(e.target.value)}
+                      placeholder="Auto-generated"
+                    />
+                    <small>
+                      Leave blank to let HisabBookes generate the number.
+                    </small>
+                  </label>
+
+                  <label>
                     Invoice date
                     <input
                       type="date"
                       value={issueDate}
-                      onChange={(e) =>
-                        setIssueDate(e.target.value)
-                      }
+                      onChange={(e) => setIssueDate(e.target.value)}
                     />
                   </label>
 
@@ -370,33 +351,24 @@ export default function NewInvoicePage() {
                     <input
                       type="date"
                       value={dueDate}
-                      onChange={(e) =>
-                        setDueDate(e.target.value)
-                      }
+                      onChange={(e) => setDueDate(e.target.value)}
                     />
                   </label>
 
-                  <label className="profile-full">
+                  <label>
                     Customer
                     <select
                       value={customerId}
-                      onChange={(e) =>
-                        setCustomerId(e.target.value)
-                      }
+                      onChange={(e) => setCustomerId(e.target.value)}
                       disabled={loadingCustomers}
                     >
                       {loadingCustomers ? (
                         <option>Loading customers…</option>
                       ) : customers.length === 0 ? (
-                        <option value="">
-                          No customers found
-                        </option>
+                        <option value="">No customers found</option>
                       ) : (
                         customers.map((customer) => (
-                          <option
-                            key={customer.id}
-                            value={customer.id}
-                          >
+                          <option key={customer.id} value={customer.id}>
                             {customer.companyName
                               ? `${customer.companyName} — ${customer.name}`
                               : customer.name}
@@ -408,30 +380,20 @@ export default function NewInvoicePage() {
                     <button
                       type="button"
                       className="mini-button"
-                      style={{
-                        marginTop: 10,
-                        alignSelf: "flex-start",
-                      }}
+                      style={{ marginTop: 10, alignSelf: "flex-start" }}
                       onClick={() => {
-                        setShowCustomerForm(
-                          (current) => !current,
-                        );
+                        setShowCustomerForm((value) => !value);
                         setError("");
                       }}
                     >
-                      {showCustomerForm
-                        ? "Cancel"
-                        : "+ Add new customer"}
+                      {showCustomerForm ? "Cancel" : "+ Add new customer"}
                     </button>
 
                     {showCustomerForm && (
                       <div className="new-customer-box">
                         <div className="new-customer-heading">
                           <strong>Add customer</strong>
-                          <span>
-                            Add customer details without leaving
-                            the invoice.
-                          </span>
+                          <span>Create a customer without leaving the invoice.</span>
                         </div>
 
                         <div className="new-customer-grid">
@@ -446,16 +408,13 @@ export default function NewInvoicePage() {
                                 })
                               }
                               placeholder="Customer name"
-                              autoFocus
                             />
                           </label>
 
                           <label>
                             Company Name
                             <input
-                              value={
-                                customerForm.companyName
-                              }
+                              value={customerForm.companyName}
                               onChange={(e) =>
                                 setCustomerForm({
                                   ...customerForm,
@@ -476,7 +435,7 @@ export default function NewInvoicePage() {
                                   phone: e.target.value,
                                 })
                               }
-                              placeholder="9876543210"
+                              placeholder="Phone number"
                             />
                           </label>
 
@@ -491,7 +450,7 @@ export default function NewInvoicePage() {
                                   email: e.target.value,
                                 })
                               }
-                              placeholder="customer@example.com"
+                              placeholder="Email address"
                             />
                           </label>
 
@@ -506,7 +465,7 @@ export default function NewInvoicePage() {
                                   address: e.target.value,
                                 })
                               }
-                              placeholder="Full address"
+                              placeholder="Address"
                             />
                           </label>
 
@@ -540,38 +499,14 @@ export default function NewInvoicePage() {
                           </label>
                         </div>
 
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 10,
-                          }}
+                        <button
+                          type="button"
+                          className="button button-small"
+                          disabled={savingCustomer}
+                          onClick={createCustomer}
                         >
-                          <button
-                            type="button"
-                            className="button button-small"
-                            disabled={savingCustomer}
-                            onClick={createCustomer}
-                          >
-                            {savingCustomer
-                              ? "Saving…"
-                              : "Save Customer"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="button button-ghost button-small"
-                            disabled={savingCustomer}
-                            onClick={() => {
-                              setShowCustomerForm(false);
-                              setCustomerForm(
-                                emptyCustomerForm,
-                              );
-                              setError("");
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                          {savingCustomer ? "Saving…" : "Save Customer"}
+                        </button>
                       </div>
                     )}
                   </label>
@@ -582,9 +517,7 @@ export default function NewInvoicePage() {
                 <div className="card-title">
                   <div>
                     <h2>Items / services</h2>
-                    <p>
-                      Add what you are billing the customer for.
-                    </p>
+                    <p>Add what you are billing the customer for.</p>
                   </div>
 
                   <button
@@ -602,11 +535,7 @@ export default function NewInvoicePage() {
                       placeholder="Description"
                       value={item.description}
                       onChange={(e) =>
-                        updateItem(
-                          index,
-                          "description",
-                          e.target.value,
-                        )
+                        updateItem(index, "description", e.target.value)
                       }
                     />
 
@@ -616,11 +545,7 @@ export default function NewInvoicePage() {
                       placeholder="Qty"
                       value={item.quantity}
                       onChange={(e) =>
-                        updateItem(
-                          index,
-                          "quantity",
-                          e.target.value,
-                        )
+                        updateItem(index, "quantity", e.target.value)
                       }
                     />
 
@@ -630,11 +555,7 @@ export default function NewInvoicePage() {
                       placeholder="Rate"
                       value={item.rate}
                       onChange={(e) =>
-                        updateItem(
-                          index,
-                          "rate",
-                          e.target.value,
-                        )
+                        updateItem(index, "rate", e.target.value)
                       }
                     />
 
@@ -644,11 +565,7 @@ export default function NewInvoicePage() {
                       placeholder="Discount"
                       value={item.discount}
                       onChange={(e) =>
-                        updateItem(
-                          index,
-                          "discount",
-                          e.target.value,
-                        )
+                        updateItem(index, "discount", e.target.value)
                       }
                     />
 
@@ -656,7 +573,6 @@ export default function NewInvoicePage() {
                       type="button"
                       aria-label="Remove item"
                       onClick={() => removeItem(index)}
-                      disabled={items.length === 1}
                     >
                       ×
                     </button>
@@ -668,10 +584,7 @@ export default function NewInvoicePage() {
                 <div className="card-title">
                   <div>
                     <h2>Tax & notes</h2>
-                    <p>
-                      Apply the tax rate and optional invoice
-                      notes.
-                    </p>
+                    <p>Apply the tax rate and optional invoice notes.</p>
                   </div>
                 </div>
 
@@ -687,19 +600,12 @@ export default function NewInvoicePage() {
                   />
                 </label>
 
-                <label
-                  style={{
-                    display: "block",
-                    marginTop: 18,
-                  }}
-                >
+                <label style={{ display: "block", marginTop: 18 }}>
                   Notes
                   <textarea
                     rows={4}
                     value={notes}
-                    onChange={(e) =>
-                      setNotes(e.target.value)
-                    }
+                    onChange={(e) => setNotes(e.target.value)}
                     placeholder="Optional notes for this invoice"
                     style={{
                       width: "100%",
@@ -714,7 +620,7 @@ export default function NewInvoicePage() {
             <aside className="invoice-preview">
               <div className="preview-top">
                 <span>LIVE PREVIEW</span>
-                <span>AUTO NUMBER</span>
+                <span>{invoiceNo || "AUTO NUMBER"}</span>
               </div>
 
               <div className="paper">
@@ -727,7 +633,7 @@ export default function NewInvoicePage() {
                   <div className="paper-invoice">
                     INVOICE
                     <br />
-                    <span>AUTO</span>
+                    <span>{invoiceNo || "AUTO"}</span>
                   </div>
                 </div>
 
@@ -758,36 +664,28 @@ export default function NewInvoicePage() {
                     <span>AMOUNT</span>
                   </div>
 
-                  {items.map((item, index) => {
-                    const gross =
-                      item.quantity * item.rate;
-                    const itemDiscount = Math.min(
-                      item.discount,
-                      gross,
-                    );
-                    const amount = gross - itemDiscount;
+                  {items.map((item, index) => (
+                    <div key={index}>
+                      <span>
+                        {item.description || "Service"}
+                        <small>
+                          {item.quantity} × ₹
+                          {item.rate.toLocaleString("en-IN")}
+                        </small>
+                      </span>
 
-                    return (
-                      <div key={index}>
-                        <span>
-                          {item.description || "Service"}
-                          <small>
-                            {item.quantity} × ₹
-                            {item.rate.toLocaleString(
-                              "en-IN",
-                            )}
-                          </small>
-                        </span>
-
-                        <strong>
-                          ₹
-                          {amount.toLocaleString(
-                            "en-IN",
-                          )}
-                        </strong>
-                      </div>
-                    );
-                  })}
+                      <strong>
+                        ₹
+                        {(
+                          item.quantity * item.rate -
+                          Math.min(
+                            item.discount,
+                            item.quantity * item.rate,
+                          )
+                        ).toLocaleString("en-IN")}
+                      </strong>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="paper-total">
@@ -819,14 +717,8 @@ export default function NewInvoicePage() {
                 </div>
 
                 {notes && (
-                  <div className="paper-note">
-                    {notes}
-                  </div>
+                  <div className="paper-note">{notes}</div>
                 )}
-
-                <div className="paper-footer">
-                  Generated by HisabBookes
-                </div>
               </div>
             </aside>
           </div>

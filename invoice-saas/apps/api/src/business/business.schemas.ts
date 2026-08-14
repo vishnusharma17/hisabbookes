@@ -9,6 +9,8 @@ export const createBusinessSchema = z.object({
   gstin: z.string().trim().max(15).optional(),
   contactEmail: z.string().trim().toLowerCase().email().optional(),
   phone: z.string().trim().max(30).optional(),
+  invoiceNumberPrefix: z.string().trim().min(1).max(20).optional(),
+  invoiceNumberStart: z.number().int().min(1).optional(),
 });
 export const updateBusinessSchema = createBusinessSchema.partial();
 export type CreateBusinessInput = z.infer<typeof createBusinessSchema>;
