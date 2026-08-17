@@ -347,7 +347,6 @@ export default function NewInvoicePage() {
                 ).toISOString()
               : undefined,
             notes: notes.trim() || undefined,
-            terms: terms.trim() || undefined,
             items: items.map((item) => ({
               description: item.description.trim(),
               hsnSac: item.hsnSac.trim() || undefined,

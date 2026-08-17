@@ -165,23 +165,12 @@ export async function buildInvoicePdf(
 
     if (invoice.customer?.gstin) {
       doc.text(`GSTIN: ${invoice.customer.gstin}`, left, customerY);
-      customerY += 13;
-    }
-
-    if (invoice.customer?.email) {
-      doc.text(invoice.customer.email, left, customerY);
-      customerY += 13;
-    }
-
-    if (invoice.customer?.phone) {
-      doc.text(invoice.customer.phone, left, customerY);
     }
 
     // Items table
     const tableTop = 275;
     const columns = {
       description: left,
-      hsn: 255,
       qty: 330,
       rate: 370,
       discount: 425,
@@ -198,7 +187,6 @@ export async function buildInvoicePdf(
       .font("Helvetica-Bold")
       .fontSize(8)
       .text("DESCRIPTION", columns.description + 8, tableTop + 9)
-      .text("HSN/SAC", columns.hsn, tableTop + 9, { width: 55, align: "right" })
       .text("QTY", columns.qty, tableTop + 9, { width: 35, align: "right" })
       .text("RATE", columns.rate, tableTop + 9, { width: 45, align: "right" })
       .text("DISC.", columns.discount, tableTop + 9, {
@@ -231,12 +219,7 @@ export async function buildInvoicePdf(
         .font("Helvetica")
         .fontSize(8)
         .text(item.description, left + 8, y + 10, {
-          width: 195,
-          ellipsis: true,
-        })
-        .text(item.hsnSac || "-", columns.hsn, y + 10, {
-          width: 55,
-          align: "right",
+          width: 270,
           ellipsis: true,
         })
         .text(item.quantity.toString(), columns.qty, y + 10, {
@@ -286,9 +269,6 @@ export async function buildInvoicePdf(
     totalRow("Taxable Amount", money(invoice.taxableAmount));
     totalRow("CGST", money(invoice.cgst));
     totalRow("SGST", money(invoice.sgst));
-    if (Number(invoice.igst) > 0) {
-      totalRow("IGST", money(invoice.igst));
-    }
 
     doc
       .moveTo(totalsX, y - 5)
@@ -298,50 +278,6 @@ export async function buildInvoicePdf(
       .stroke();
 
     totalRow("TOTAL", money(invoice.total), true);
-
-    if (invoice.notes || invoice.terms) {
-      y += 12;
-
-      if (invoice.notes) {
-        doc
-          .font("Helvetica-Bold")
-          .fontSize(9)
-          .fillColor("#222222")
-          .text("Notes", left, y);
-
-        y += 14;
-
-        doc
-          .font("Helvetica")
-          .fontSize(8)
-          .fillColor("#555555")
-          .text(invoice.notes, left, y, {
-            width: contentWidth,
-          });
-
-        y += doc.heightOfString(invoice.notes, {
-          width: contentWidth,
-        }) + 12;
-      }
-
-      if (invoice.terms) {
-        doc
-          .font("Helvetica-Bold")
-          .fontSize(9)
-          .fillColor("#222222")
-          .text("Terms & Conditions", left, y);
-
-        y += 14;
-
-        doc
-          .font("Helvetica")
-          .fontSize(8)
-          .fillColor("#555555")
-          .text(invoice.terms, left, y, {
-            width: contentWidth,
-          });
-      }
-    }
 
     // Footer
     const footerY = 760;

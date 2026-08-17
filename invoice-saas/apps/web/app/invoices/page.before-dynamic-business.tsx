@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../src/lib/api";
 
+const BUSINESS_ID = process.env.NEXT_PUBLIC_BUSINESS_ID;
+
 type Customer = { id: string; name: string; companyName: string | null };
 type Invoice = {
   id: string; invoiceNumber: string; status: string; total: string;
@@ -25,7 +27,6 @@ const dateText = (v?: string | null) => {
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [issueDate, setIssueDate] = useState("");
@@ -47,42 +48,17 @@ export default function InvoicesPage() {
   const [paymentError, setPaymentError] = useState("");
 
   async function loadData() {
+    if (!BUSINESS_ID) { setError("NEXT_PUBLIC_BUSINESS_ID is not configured"); setLoading(false); return; }
     try {
-      const businesses = await apiFetch<{
-        businesses: Array<{ id: string }>;
-      }>("/businesses");
-
-      const business = businesses.businesses[0];
-
-      if (!business) {
-        setError("BUSINESS_NOT_FOUND");
-        return;
-      }
-
-      setBusinessId(business.id);
-
       const [a, b] = await Promise.all([
-        apiFetch<{ invoices: Invoice[] }>(
-          `/businesses/${business.id}/invoices`,
-        ),
-        apiFetch<{ customers: Customer[] }>(
-          `/businesses/${business.id}/customers`,
-        ),
+        apiFetch<{ invoices: Invoice[] }>(`/businesses/${BUSINESS_ID}/invoices`),
+        apiFetch<{ customers: Customer[] }>(`/businesses/${BUSINESS_ID}/customers`),
       ]);
-
-      setInvoices(a.invoices);
-      setCustomers(b.customers);
-
-      if (!customerId && b.customers.length) {
-        setCustomerId(b.customers[0].id);
-      }
-
+      setInvoices(a.invoices); setCustomers(b.customers);
+      if (!customerId && b.customers.length) setCustomerId(b.customers[0].id);
       setError("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "LOAD_FAILED");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : "LOAD_FAILED"); }
+    finally { setLoading(false); }
   }
   useEffect(() => { void loadData(); }, []);
 
@@ -107,11 +83,11 @@ export default function InvoicesPage() {
 
   async function createInvoice(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!businessId || !customerId) { setError("Select a customer first."); return; }
+    if (!BUSINESS_ID || !customerId) { setError("Select a customer first."); return; }
     if (items.some(x => !x.description.trim())) { setError("Every invoice item needs a description."); return; }
     setSaving(true); setError("");
     try {
-      await apiFetch(`/businesses/${businessId}/invoices`, {
+      await apiFetch(`/businesses/${BUSINESS_ID}/invoices`, {
         method: "POST",
         body: JSON.stringify({
           customerId, ...(issueDate ? { issueDate } : {}),
@@ -125,10 +101,10 @@ export default function InvoicesPage() {
   }
 
   async function loadPayments(id: string) {
-    if (!businessId) return;
+    if (!BUSINESS_ID) return;
     setPaymentLoading(true); setPaymentError("");
     try {
-      const d = await apiFetch<{ payments: Payment[]; summary: PaymentSummary }>(`/businesses/${businessId}/invoices/${id}/payments`);
+      const d = await apiFetch<{ payments: Payment[]; summary: PaymentSummary }>(`/businesses/${BUSINESS_ID}/invoices/${id}/payments`);
       setPayments(d.payments); setPaymentSummary(d.summary);
     } catch (e) { setPaymentError(e instanceof Error ? e.message : "PAYMENTS_LOAD_FAILED"); }
     finally { setPaymentLoading(false); }
@@ -143,13 +119,13 @@ export default function InvoicesPage() {
 
   async function recordPayment(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!businessId || !paymentInvoiceId) return;
+    if (!BUSINESS_ID || !paymentInvoiceId) return;
     const amount = Number(paymentAmount);
     if (!Number.isFinite(amount) || amount <= 0) { setPaymentError("Enter a valid payment amount."); return; }
     if (paymentSummary && amount > paymentSummary.outstandingAmount) { setPaymentError(`Maximum payment allowed is ${money(paymentSummary.outstandingAmount)}.`); return; }
     setPaymentLoading(true); setPaymentError("");
     try {
-      const d = await apiFetch<{ payment: Payment; summary: PaymentSummary }>(`/businesses/${businessId}/invoices/${paymentInvoiceId}/payments`, {
+      const d = await apiFetch<{ payment: Payment; summary: PaymentSummary }>(`/businesses/${BUSINESS_ID}/invoices/${paymentInvoiceId}/payments`, {
         method: "POST",
         body: JSON.stringify({
           amount, method: paymentMethod,
@@ -164,16 +140,16 @@ export default function InvoicesPage() {
   }
 
   async function finalizeInvoice(id: string) {
-    if (!businessId) return;
-    try { await apiFetch(`/businesses/${businessId}/invoices/${id}/finalize`, { method: "POST" }); await loadData(); }
+    if (!BUSINESS_ID) return;
+    try { await apiFetch(`/businesses/${BUSINESS_ID}/invoices/${id}/finalize`, { method: "POST" }); await loadData(); }
     catch (e) { setError(e instanceof Error ? e.message : "FINALIZE_FAILED"); }
   }
 
   async function openPdf(id: string) {
-    if (!businessId) return;
+    if (!BUSINESS_ID) return;
     const token = localStorage.getItem("hisabbookes_access_token");
     const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
-    const r = await fetch(`${base}/businesses/${businessId}/invoices/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const r = await fetch(`${base}/businesses/${BUSINESS_ID}/invoices/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     if (!r.ok) { setError("PDF_DOWNLOAD_FAILED"); return; }
     const url = URL.createObjectURL(await r.blob()); window.open(url, "_blank", "noopener,noreferrer");
   }

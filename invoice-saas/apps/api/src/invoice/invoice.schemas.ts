@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const itemSchema = z.object({
   description: z.string().trim().min(1).max(500),
+  hsnSac: z.string().trim().max(20).optional(),
   quantity: z.number().positive(),
   unitPrice: z.number().nonnegative(),
   taxRate: z.number().min(0).max(100).default(0),

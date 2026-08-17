@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../../src/lib/api";
 
+const BUSINESS_ID = process.env.NEXT_PUBLIC_BUSINESS_ID;
+
 type Customer = {
   id: string;
   name: string;
@@ -40,7 +42,6 @@ const emptyForm: CustomerInput = {
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -51,24 +52,16 @@ export default function CustomersPage() {
   const [message, setMessage] = useState("");
 
   async function loadCustomers() {
+    if (!BUSINESS_ID) {
+      setError("NEXT_PUBLIC_BUSINESS_ID is not configured");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const businesses = await apiFetch<{
-        businesses: Array<{ id: string }>;
-      }>("/businesses");
-
-      const business = businesses.businesses[0];
-
-      if (!business) {
-        setError("BUSINESS_NOT_FOUND");
-        return;
-      }
-
-      setBusinessId(business.id);
-
       const data = await apiFetch<{ customers: Customer[] }>(
-        `/businesses/${business.id}/customers`,
+        `/businesses/${BUSINESS_ID}/customers`,
       );
-
       setCustomers(data.customers);
       setError("");
     } catch (err) {
@@ -128,7 +121,7 @@ export default function CustomersPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!businessId) return;
+    if (!BUSINESS_ID) return;
 
     setSaving(true);
     setError("");
@@ -147,13 +140,13 @@ export default function CustomersPage() {
 
     try {
       if (editingId) {
-        await apiFetch(`/businesses/${businessId}/customers/${editingId}`, {
+        await apiFetch(`/businesses/${BUSINESS_ID}/customers/${editingId}`, {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
         setMessage("Customer updated successfully.");
       } else {
-        await apiFetch(`/businesses/${businessId}/customers`, {
+        await apiFetch(`/businesses/${BUSINESS_ID}/customers`, {
           method: "POST",
           body: JSON.stringify(payload),
         });
@@ -170,7 +163,7 @@ export default function CustomersPage() {
   }
 
   async function removeCustomer(customer: Customer) {
-    if (!businessId) return;
+    if (!BUSINESS_ID) return;
 
     const label = customer.companyName
       ? `${customer.companyName} — ${customer.name}`
@@ -183,7 +176,7 @@ export default function CustomersPage() {
     setMessage("");
 
     try {
-      await apiFetch(`/businesses/${businessId}/customers/${customer.id}`, {
+      await apiFetch(`/businesses/${BUSINESS_ID}/customers/${customer.id}`, {
         method: "DELETE",
       });
 

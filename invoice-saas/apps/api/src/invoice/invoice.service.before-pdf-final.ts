@@ -86,7 +86,6 @@ export async function createInvoice(
       items: {
         create: input.items.map((item, index) => ({
           description: item.description,
-          hsnSac: item.hsnSac,
           quantity: item.quantity,
           rate: item.unitPrice,
           taxRate: item.taxRate,
