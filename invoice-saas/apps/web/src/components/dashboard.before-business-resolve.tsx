@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, type Dashboard } from "../lib/api";
 
-type Business = {
-  id: string;
-  legalName: string;
-  displayName: string | null;
-};
+const BUSINESS_ID = process.env.NEXT_PUBLIC_BUSINESS_ID;
 
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -35,33 +31,14 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadDashboard() {
-      try {
-        const businessData = await apiFetch<{
-          businesses: Array<{
-            id: string;
-            legalName: string;
-            displayName: string | null;
-          }>;
-        }>("/businesses");
-
-        const business = businessData.businesses[0];
-
-        if (!business) {
-          throw new Error("BUSINESS_NOT_FOUND");
-        }
-
-        const data = await apiFetch<{ dashboard: Dashboard }>(
-          `/businesses/${business.id}/dashboard`,
-        );
-
-        setDashboard(data.dashboard);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "DASHBOARD_FAILED");
-      }
+    if (!BUSINESS_ID) {
+      setError("NEXT_PUBLIC_BUSINESS_ID is not configured");
+      return;
     }
 
-    void loadDashboard();
+    apiFetch<{ dashboard: Dashboard }>(`/businesses/${BUSINESS_ID}/dashboard`)
+      .then((data) => setDashboard(data.dashboard))
+      .catch((err: Error) => setError(err.message));
   }, []);
 
   if (error) {

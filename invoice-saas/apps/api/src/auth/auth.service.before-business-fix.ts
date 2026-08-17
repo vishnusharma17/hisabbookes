@@ -26,30 +26,17 @@ export async function signup(input: SignupInput) {
 
   const passwordHash = await argon2.hash(input.password);
 
-  const user = await prisma.$transaction(async (tx) => {
-    const createdUser = await tx.user.create({
-      data: {
-        email: input.email,
-        passwordHash,
-      },
-      select: {
-        id: true,
-        email: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-
-    await tx.business.create({
-      data: {
-        userId: createdUser.id,
-        legalName: input.email.split("@")[0] || "My Business",
-        displayName: "My Business",
-        country: "India",
-      },
-    });
-
-    return createdUser;
+  const user = await prisma.user.create({
+    data: {
+      email: input.email,
+      passwordHash,
+    },
+    select: {
+      id: true,
+      email: true,
+      status: true,
+      createdAt: true,
+    },
   });
 
   return {

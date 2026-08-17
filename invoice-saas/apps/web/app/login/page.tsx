@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, saveAccessToken } from "../../src/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("test@hisabbookes.local");
-  const [password, setPassword] = useState("TestPass123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -24,41 +25,65 @@ export default function LoginPage() {
 
       saveAccessToken(data.accessToken);
       router.replace("/dashboard");
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "LOGIN_FAILED");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "LOGIN_FAILED");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: "80px auto", padding: 24 }}>
-      <h1>HisabBookes</h1>
-      <p>Login to your account</p>
+    <main className="auth-page">
+      <div className="auth-card">
+        <Link className="brand-link" href="/">
+          HisabBookes
+        </Link>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
-        <input
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="Email"
-          required
-        />
+        <span className="eyebrow">Welcome back</span>
+        <h1>Sign in to your account</h1>
+        <p>Manage invoices, customers and payments from one workspace.</p>
 
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
-          required
-        />
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@company.com"
+              autoComplete="email"
+              required
+            />
+          </label>
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Your password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+          {error && <p className="auth-error">{error}</p>}
+
+          <button className="button" type="submit" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup">Create one</Link>
+        </p>
+
+        <Link className="auth-back" href="/">
+          ← Back to HisabBookes
+        </Link>
+      </div>
     </main>
   );
 }

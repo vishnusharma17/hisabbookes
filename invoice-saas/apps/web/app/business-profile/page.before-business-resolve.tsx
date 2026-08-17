@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../../src/lib/api";
 
+const BUSINESS_ID = process.env.NEXT_PUBLIC_BUSINESS_ID;
+
 type Business = {
   id: string;
   legalName: string;
@@ -39,73 +41,51 @@ export default function BusinessProfilePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadBusiness() {
-      try {
-        const data = await apiFetch<{
-          businesses: Array<{
-            id: string;
-            legalName: string;
-            displayName: string | null;
-            address: string | null;
-            state: string | null;
-            country: string;
-            gstin: string | null;
-            contactEmail: string | null;
-            phone: string | null;
-            logoUrl: string | null;
-            invoiceNumberPrefix: string;
-            invoiceNumberStart: number;
-          }>;
-        }>("/businesses");
-
-        const currentBusiness = data.businesses[0];
-
-        if (!currentBusiness) {
-          throw new Error("BUSINESS_NOT_FOUND");
-        }
-
-        setBusiness(currentBusiness);
-        setForm({
-          legalName: currentBusiness.legalName ?? "",
-          displayName: currentBusiness.displayName ?? "",
-          address: currentBusiness.address ?? "",
-          state: currentBusiness.state ?? "",
-          country: currentBusiness.country ?? "India",
-          gstin: currentBusiness.gstin ?? "",
-          contactEmail: currentBusiness.contactEmail ?? "",
-          phone: currentBusiness.phone ?? "",
-          invoiceNumberPrefix: currentBusiness.invoiceNumberPrefix ?? "INV",
-          invoiceNumberStart: currentBusiness.invoiceNumberStart ?? 1,
-        });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "LOAD_FAILED");
-      } finally {
-        setLoading(false);
-      }
+    if (!BUSINESS_ID) {
+      setError("NEXT_PUBLIC_BUSINESS_ID is not configured");
+      setLoading(false);
+      return;
     }
 
-    void loadBusiness();
+    apiFetch<{ business: Business }>(`/businesses/${BUSINESS_ID}`)
+      .then(({ business }) => {
+        setBusiness(business);
+        setForm({
+          legalName: business.legalName ?? "",
+          displayName: business.displayName ?? "",
+          address: business.address ?? "",
+          state: business.state ?? "",
+          country: business.country ?? "India",
+          gstin: business.gstin ?? "",
+          contactEmail: business.contactEmail ?? "",
+          phone: business.phone ?? "",
+          invoiceNumberPrefix: business.invoiceNumberPrefix ?? "INV",
+          invoiceNumberStart: business.invoiceNumberStart ?? 1,
+        });
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!business) return;
+    if (!BUSINESS_ID) return;
 
     setSaving(true);
     setMessage("");
     setError("");
 
     try {
-      const updated = await apiFetch<{ business: Business }>(
-        `/businesses/${business.id}`,
+      const { business } = await apiFetch<{ business: Business }>(
+        `/businesses/${BUSINESS_ID}`,
         {
           method: "PATCH",
           body: JSON.stringify(form),
         },
       );
 
-      setBusiness(updated.business);
+      setBusiness(business);
       setMessage("Business profile saved successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "SAVE_FAILED");

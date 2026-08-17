@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../../src/lib/api";
 
+const BUSINESS_ID = process.env.NEXT_PUBLIC_BUSINESS_ID;
+
 type Customer = {
   id: string;
   name: string;
@@ -17,7 +19,6 @@ type Customer = {
 };
 
 type Business = {
-  id: string;
   legalName: string;
   displayName: string | null;
   address: string | null;
@@ -104,38 +105,21 @@ export default function NewInvoicePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadInvoiceBuilder() {
-      try {
-        const businessData = await apiFetch<{
-          businesses: Array<{
-            id: string;
-            legalName: string;
-            displayName: string | null;
-            address: string | null;
-            state: string | null;
-            country: string;
-            gstin: string | null;
-            invoiceNumberPrefix?: string;
-            invoiceNumberStart?: number;
-          }>;
-        }>("/businesses");
+    if (!BUSINESS_ID) {
+      setError("NEXT_PUBLIC_BUSINESS_ID is not configured");
+      setLoading(false);
+      return;
+    }
 
-        const currentBusiness = businessData.businesses[0];
-
-        if (!currentBusiness) {
-          throw new Error("BUSINESS_NOT_FOUND");
-        }
-
-        const [businessResponse, customerResponse] =
-          await Promise.all([
-            apiFetch<{ business: Business }>(
-              `/businesses/${currentBusiness.id}`,
-            ),
-            apiFetch<{ customers: Customer[] }>(
-              `/businesses/${currentBusiness.id}/customers`,
-            ),
-          ]);
-
+    Promise.all([
+      apiFetch<{ business: Business }>(
+        `/businesses/${BUSINESS_ID}`,
+      ),
+      apiFetch<{ customers: Customer[] }>(
+        `/businesses/${BUSINESS_ID}/customers`,
+      ),
+    ])
+      .then(([businessResponse, customerResponse]) => {
         const b = businessResponse.business;
 
         setBusiness(b);
@@ -151,18 +135,9 @@ export default function NewInvoicePage() {
         setInvoiceNumber(
           `${prefix}-${String(start).padStart(4, "0")}`,
         );
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "INVOICE_BUILDER_FAILED",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadInvoiceBuilder();
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const customer = customers.find(
@@ -256,7 +231,7 @@ export default function NewInvoicePage() {
   }
 
   async function saveCustomer() {
-    if (!business) return;
+    if (!BUSINESS_ID) return;
 
     if (!customerForm.name.trim()) {
       setError("Customer name is required.");
@@ -268,7 +243,7 @@ export default function NewInvoicePage() {
 
     try {
       const response = await apiFetch<{ customer: Customer }>(
-        `/businesses/${business.id}/customers`,
+        `/businesses/${BUSINESS_ID}/customers`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -310,7 +285,7 @@ export default function NewInvoicePage() {
   async function saveDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!business) return;
+    if (!BUSINESS_ID) return;
 
     if (!customerId) {
       setError("Please select a customer.");
@@ -333,7 +308,7 @@ export default function NewInvoicePage() {
 
     try {
       await apiFetch(
-        `/businesses/${business.id}/invoices`,
+        `/businesses/${BUSINESS_ID}/invoices`,
         {
           method: "POST",
           body: JSON.stringify({
